@@ -20,9 +20,9 @@
       <div>
         <div>
           横軸：<select x-model="renderMode">
-            <option :value="'linear'">線形</option>
-            <option :value="'logarithmic'">対数</option>
-            <option :value="'block'" :selected="true">ブロック</option>
+            <template x-for="opt in RenderModeOptions" :key="opt.value">
+              <option :value="opt.value" x-text="opt.text" :selected="renderMode==opt.value"></option>
+            </template>
           </select>
         </div>
 
@@ -39,11 +39,9 @@
 
         <div>
           fftSize：<select x-model="fftSize">
-            <option :value="512">512</option>
-            <option :value="1024">1024</option>
-            <option :value="2048" :selected="true">2048</option>
-            <option :value="4096">4096</option>
-            <option :value="8192">8192</option>
+            <template x-for="opt in FftSizeOptions" :key="opt">
+              <option :value="opt" x-text="opt" :selected="fftSize==opt"></option>
+            </template>
           </select>
         </div>
 

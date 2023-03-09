@@ -1,6 +1,6 @@
 const DC_REMOVE_WORKER_PASS = './dc_remove_worker.js'
 
-const FFT_SIZE = 2048
+const FFT_SIZE = 8192
 
 const LINEAR = 'linear'
 const LOGARITHMIC = 'logarithmic'
@@ -271,6 +271,13 @@ class SpectrumAnalyzer {
 const initialData = (() => {
   'use strick'
 
+  const RenderModeOptions = [
+    {value: LINEAR, text: '線形'},
+    {value: LOGARITHMIC, text: '対数'},
+    {value: BLOCK, text: 'ブロック'},
+  ]
+  const FftSizeOptions = [512, 1024, 2048, 4096, 8192]
+
   let audioCtx = null
   let spectrumAnalyzer = null
   let audioSource = null
@@ -286,8 +293,10 @@ const initialData = (() => {
   return {
     maxDecibels: -30,
     minDecibels: -60,
-    renderMode: BLOCK,
+    renderMode: LOGARITHMIC,
+    RenderModeOptions,
     fftSize: FFT_SIZE,
+    FftSizeOptions,
     playing: false,
 
     init() {
