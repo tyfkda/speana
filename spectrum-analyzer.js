@@ -49,10 +49,7 @@ class SpectrumAnalyzer {
   analyserNode = null  // AnalyserNode
   floatArray = null    // Buffer for FFT
 
-  renderMode = BLOCK
   canvas = null        // Canvas
-  rafId = null         // requestAnimationFrame
-  loopFn = null        // Loop function
 
   constructor(audioCtx, canvas) {
     this.audioCtx = audioCtx
@@ -89,29 +86,9 @@ class SpectrumAnalyzer {
 
   connectFrom(source) {
     source.connect(this.analyserNode)
-    this.startLoop()
   }
 
-  startLoop() {
-    if (this.rafId != null) {
-      cancelAnimationFrame(this.rafId)
-      this.rafId = null
-      this.loopFn = null
-    }
-
-    let lastTime = window.performance.now()
-    this.loopFn = (_timestamp) => {
-      const curTime = window.performance.now()
-      const elapsedTime = curTime - lastTime
-      lastTime = curTime
-
-      this.update(elapsedTime)
-      this.rafId = requestAnimationFrame(this.loopFn)
-    }
-    this.rafId = requestAnimationFrame(this.loopFn)
-  }
-
-  update(_elapsedTime) {
+  update(renderMode) {
     const dataArray = this.floatArray
     // this.analyserNode.getFloatFrequencyData(dataArray)
     this.analyserNode.getByteFrequencyData(dataArray)
@@ -123,7 +100,7 @@ class SpectrumAnalyzer {
     if (this.analyserNode.minDecibels >= this.analyserNode.maxDecibels)
       return
 
-    switch (this.renderMode) {
+    switch (renderMode) {
     default:
     case LINEAR:
       this.renderLinear(canvasCtx, dataArray)
@@ -158,7 +135,8 @@ class SpectrumAnalyzer {
     const minHz = 0
     const maxHz = sampleRate * 0.5
 
-    const table = [100, 1000, 10000]
+    // const table = [100, 1000, 10000]
+    const table = [31, 63, 125, 250, 500, 1024, 2048, 4092, 8196, 16384]
     canvasCtx.strokeStyle = 'rgb(255,255,255)'
     canvasCtx.setLineDash([2, 2])
     for (let i = 0; i < table.length; ++i) {
@@ -193,14 +171,15 @@ class SpectrumAnalyzer {
     canvasCtx.fillStyle = 'rgb(0,224,64)'
     for (let i = 0; i < WIDTH; ++i) {
       const e = i * range + minHzVal
-      const freq = Math.pow(BASE, e)
+      const freq = BASE ** e
       const bin = (freq * binScale) | 0
       const h = ((dataArray[bin] - minDecibels) * scale) | 0
       const x = i
       canvasCtx.fillRect(x, HEIGHT - h, 1, h)
     }
 
-    const table = [100, 1000, 10000]
+    // const table = [100, 1000, 10000]
+    const table = [31, 63, 125, 250, 500, 1024, 2048, 4092, 8196, 16384]
     canvasCtx.strokeStyle = 'rgb(255,255,255)'
     canvasCtx.setLineDash([2, 2])
     for (let i = 0; i < table.length; ++i) {
@@ -281,10 +260,17 @@ const initialData = (() => {
   let audioCtx = null
   let spectrumAnalyzer = null
   let audioSource = null
+  let gainNode = null
+  let rafId = null         // requestAnimationFrame
+  let loopFn = null
+  let audioEl = null
+
 
   function stopAudio() {
-    if (audioSource != null) {
-      audioSource.stop()
+    if (audioEl != null) {
+      audioEl.pause()
+      audioEl.src = null
+      audioEl = null
       audioSource.disconnect()
       audioSource = null
     }
@@ -337,6 +323,9 @@ const initialData = (() => {
       if (audioCtx == null) {
         audioCtx = new AudioContext()
 
+        gainNode = audioCtx.createGain()
+        gainNode.connect(audioCtx.destination)
+
         const canvas = document.getElementById('mycanvas')
         spectrumAnalyzer = new SpectrumAnalyzer(audioCtx, canvas)
         spectrumAnalyzer.renderMode = this.renderMode
@@ -344,30 +333,71 @@ const initialData = (() => {
         spectrumAnalyzer.setFftSize(this.fftSize)
       }
 
-      const reader = new FileReader()
-      reader.addEventListener('load', async (e) => {
-        const ab = e.target.result
-        const context = audioCtx
-        let audioBuffer = null
-        try {
-          audioBuffer = await context.decodeAudioData(ab)
-        } catch (e) {
-          console.warn(e)
-          return
-        }
+      // const reader = new FileReader()
+      // reader.addEventListener('load', async (e) => {
+      //   const ab = e.target.result
+      //   const context = audioCtx
+      //   let audioBuffer = null
+      //   try {
+      //     audioBuffer = await context.decodeAudioData(ab)
+      //   } catch (e) {
+      //     console.warn(e)
+      //     return
+      //   }
 
-        audioSource = audioCtx.createBufferSource()
-        audioSource.buffer = audioBuffer
-        audioSource.addEventListener('ended', () => this.stop())
+      //   audioSource = audioCtx.createBufferSource()
+      //   audioSource.buffer = audioBuffer
+      //   audioSource.addEventListener('ended', () => this.stop())
 
-spectrumAnalyzer.analyserNode.disconnect()
-        spectrumAnalyzer.connectFrom(audioSource)
-        // audioSource.connect(audioCtx.destination)
-spectrumAnalyzer.analyserNode.connect(audioCtx.destination)
-        audioSource.start()
-        this.playing = true
-      })
-      reader.readAsArrayBuffer(files[0])
+      //   spectrumAnalyzer.connectFrom(audioSource)
+      //   audioSource.connect(audioCtx.destination)
+      //   audioSource.start()
+      //   this.playing = true
+
+      //   this.startAnimation()
+      // })
+      // reader.readAsArrayBuffer(files[0])
+      const fileBlob = files[0]
+      // audioEl = document.createElement('audio')
+      audioEl = document.getElementById('player0')
+      audioEl.src = URL.createObjectURL(fileBlob)
+      // audioEl.addEventListener('load', () => {
+      //   URL.removeObjectURL(audioEl.src)
+      // })
+      audioEl.play()
+      audioEl.onload = () => {
+console.log('onload')
+        URL.removeObjectURL(audioEl.src)
+      }
+
+      audioSource = audioCtx.createMediaElementSource(audioEl)
+      spectrumAnalyzer.connectFrom(audioSource)
+      // audioSource.connect(audioCtx.destination)
+      spectrumAnalyzer.analyserNode.connect(gainNode)
+
+      this.playing = true
+      this.startAnimation()
+    },
+
+
+    stopAnimation() {
+      if (rafId != null) {
+        cancelAnimationFrame(rafId)
+        rafId = null
+        loopFn = null
+      }
+    },
+    startAnimation() {
+      if (rafId != null)
+        return
+      loopFn = (_timestamp) => {
+// if (audioEl != null) {
+//   console.log(audioEl.currentTime)
+// }
+        spectrumAnalyzer.update(this.renderMode)
+        rafId = requestAnimationFrame(loopFn)
+      }
+      rafId = requestAnimationFrame(loopFn)
     },
   }
 })()

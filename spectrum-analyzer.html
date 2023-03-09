@@ -49,9 +49,13 @@
           <input id="song-file" type="file" @change="onFileChange(Object.values($event.target.files))" />
           <button @click="stop()" :disabled="!playing">Stop</button>
         </div>
+
+        <div>
+      		<audio id="player0" controls preload="auto" crossorigin="anonymous" style="width:600px"></audio>
+        </div>
       </div>
     </div>
 
-    <canvas id="mycanvas" class="mycanvas" width="600" height="200"></canvas>
+    <canvas id="mycanvas" class="mycanvas" width="800px" height="600"></canvas>
   </body>
 </html>
