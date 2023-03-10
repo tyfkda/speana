@@ -67,7 +67,7 @@ class SpectrumAnalyzer {
 
     const sampleRate = this.audioCtx.sampleRate
     this.freqBinTable = FreqTable.map((f) => calcBin(f, bufferLength, sampleRate))
-    this.peekAmplitude = [...Array(FreqTable.length - 1)].map(_ => 0)
+    this.peakAmplitude = [...Array(FreqTable.length - 1)].map(_ => 0)
     this.ampWait = [...Array(FreqTable.length - 1)].map(_ => 0)
   }
 
@@ -221,9 +221,9 @@ class SpectrumAnalyzer {
         canvasCtx.fill()
       }
 
-      const h2 = this.peekAmplitude[i]
+      const h2 = this.peakAmplitude[i]
       if (h >= h2) {
-        this.peekAmplitude[i] = h
+        this.peakAmplitude[i] = h
         this.ampWait[i] = AMP_WAIT0
       } else if (h2 > 0) {
         const hh = h2 - 1
@@ -236,7 +236,7 @@ class SpectrumAnalyzer {
         }
 
         if (--this.ampWait[i] <= 0) {
-          this.peekAmplitude[i] = h2 - 1
+          this.peakAmplitude[i] = h2 - 1
           this.ampWait[i] = AMP_WAIT1
         }
       }
@@ -280,7 +280,7 @@ const initialData = (() => {
     RenderModeOptions,
     fftSize: FFT_SIZE,
     FftSizeOptions,
-    smoothing: 0.1,
+    smoothing: 0.0,
     playing: false,
 
     init() {
