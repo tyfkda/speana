@@ -46,6 +46,10 @@
         </div>
 
         <div>
+          Smoothing: <span x-text="smoothing" style="display:inline-block; width:30px"></span><input x-model="smoothing" type="range" min="0" max="1.0" step="0.1" />
+        </div>
+
+        <div>
           <input id="song-file" type="file" @change="onFileChange(Object.values($event.target.files))" />
           <button @click="stop()" :disabled="!playing">Stop</button>
         </div>

@@ -57,15 +57,12 @@ class SpectrumAnalyzer {
 
     this.analyserNode = this.audioCtx.createAnalyser()
     this.analyserNode.fftSize = FFT_SIZE
-    this.analyserNode.maxDecibels = -30
-    this.analyserNode.minDecibels = -60
 
     this.setUpWork()
   }
 
   setUpWork() {
     const bufferLength = this.analyserNode.frequencyBinCount
-    // this.floatArray = new Float32Array(bufferLength)
     this.floatArray = new Uint8Array(bufferLength)
 
     const sampleRate = this.audioCtx.sampleRate
@@ -283,6 +280,7 @@ const initialData = (() => {
     RenderModeOptions,
     fftSize: FFT_SIZE,
     FftSizeOptions,
+    smoothing: 0.1,
     playing: false,
 
     init() {
@@ -309,6 +307,10 @@ const initialData = (() => {
         if (spectrumAnalyzer != null)
           spectrumAnalyzer.setFftSize(value)
       })
+      this.$watch('smoothing', value => {
+        if (spectrumAnalyzer != null)
+          spectrumAnalyzer.analyserNode.smoothingTimeConstant = value
+      })
     },
     stop() {
       stopAudio()
@@ -331,6 +333,7 @@ const initialData = (() => {
         spectrumAnalyzer.renderMode = this.renderMode
         spectrumAnalyzer.setDecibels(this.maxDecibels, this.minDecibels)
         spectrumAnalyzer.setFftSize(this.fftSize)
+        spectrumAnalyzer.analyserNode.smoothingTimeConstant = this.smoothing
       }
 
       // const reader = new FileReader()
