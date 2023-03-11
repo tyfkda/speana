@@ -1,10 +1,16 @@
 const initialData = (() => {
   'use strick'
 
+  const minHz = 20
+  const maxHz = 20000
+  const minHzVal = Math.log10(minHz)
+  const maxHzVal = Math.log10(maxHz)
+
   class SpectrumAnalyzer {
     analyserNode = null  // AnalyserNode
     dataArray = null     // Buffer for FFT
     canvas = null        // Canvas
+    xBinTable = null     // index of FFT-array for x
 
     constructor(audioCtx, canvas) {
       this.audioCtx = audioCtx
@@ -19,9 +25,18 @@ const initialData = (() => {
       const bufferLength = this.analyserNode.frequencyBinCount
       this.dataArray = new Uint8Array(bufferLength)
 
-      const n = this.canvas.width
-      this.peakAmplitude = [...Array(n)].map(_ => 0)
-      this.peakFallVel = [...Array(n)].map(_ => 0)
+      const WIDTH = this.canvas.width
+      this.peakAmplitude = [...Array(WIDTH)].map(_ => 0)
+      this.peakFallVel = [...Array(WIDTH)].map(_ => 0)
+
+      const sampleRate = this.analyserNode.context.sampleRate
+      const range = (maxHzVal - minHzVal) / WIDTH
+      const binScale = bufferLength / (sampleRate * 0.5)
+      this.xBinTable = [...Array(WIDTH + 1)].map((_, i) => {
+        const e = i * range + minHzVal
+        const freq = 10 ** e
+        return (freq * binScale) | 0
+      })
     }
 
     setDecibels(max, min) {
@@ -30,8 +45,10 @@ const initialData = (() => {
     }
 
     setFftSize(fftSize) {
-      this.analyserNode.fftSize = fftSize
-      this.setUpWork()
+      if (this.analyserNode.fftSize !== fftSize) {
+        this.analyserNode.fftSize = fftSize
+        this.setUpWork()
+      }
     }
 
     connectFrom(source) {
@@ -39,9 +56,6 @@ const initialData = (() => {
     }
 
     update() {
-      const dataArray = this.dataArray
-      this.analyserNode.getByteFrequencyData(dataArray)
-
       const canvasCtx = this.canvas.getContext('2d')
       canvasCtx.fillStyle = 'rgb(0,0,0)'
       canvasCtx.fillRect(0, 0, this.canvas.width, this.canvas.height)
@@ -51,38 +65,25 @@ const initialData = (() => {
 
       const WIDTH = this.canvas.width
       const HEIGHT = this.canvas.height
-
       const scale = HEIGHT / 255
-      const sampleRate = this.analyserNode.context.sampleRate
-      const minHz = 20
-      const maxHz = Math.min(20000, sampleRate * 0.5)
-      const minHzVal = Math.log10(minHz)
-      const maxHzVal = Math.log10(maxHz)
       const gravity = HEIGHT / (64 * 64)
 
-      const bufferLength = dataArray.length
-      const range = (maxHzVal - minHzVal) / WIDTH
-      const binScale = bufferLength / (sampleRate * 0.5)
+      const dataArray = this.dataArray
+      this.analyserNode.getByteFrequencyData(dataArray)
 
-      const calcBin = (i) => {
-        const e = i * range + minHzVal
-        const freq = 10 ** e
-        return (freq * binScale) | 0
-      }
-
-      let prevBin = calcBin(0)
       for (let i = 0; i < WIDTH; ++i) {
-        const nextBin = calcBin(i + 1)
-        let v = 0
-        for (let bin = prevBin; bin <= nextBin; ++bin)
+        // Bar.
+        let bin = this.xBinTable[i]
+        let v = dataArray[bin]
+        for (const nextBin = this.xBinTable[i + 1]; ++bin < nextBin; )
           v = Math.max(v, dataArray[bin])
-        prevBin = nextBin
 
         const h = (v * scale) | 0
         const x = i
         canvasCtx.fillStyle = `rgb(${v>>2},${v},${160-(v>>1)})`
         canvasCtx.fillRect(x, HEIGHT - h, 1, h)
 
+        // Peak.
         let py = this.peakAmplitude[i]
         if (h >= py) {
           this.peakAmplitude[i] = h
@@ -97,7 +98,8 @@ const initialData = (() => {
         }
       }
 
-      const table = [
+      // Axis.
+      const AxisTable = [
         {freq: 100, text: '100Hz'},
         {freq: 1000, text: '1kHz'},
         {freq: 10000, text: '10kHz'},
@@ -105,8 +107,8 @@ const initialData = (() => {
       canvasCtx.strokeStyle = 'rgb(255,255,255)'
       canvasCtx.setLineDash([2, 2])
       canvasCtx.font = '12px serif'
-      for (let i = 0; i < table.length; ++i) {
-        const {freq, text} = table[i]
+      for (let i = 0; i < AxisTable.length; ++i) {
+        const {freq, text} = AxisTable[i]
         const e = Math.log10(freq)
         const x = (e - minHzVal) * WIDTH / (maxHzVal - minHzVal)
         canvasCtx.beginPath()
@@ -121,7 +123,7 @@ const initialData = (() => {
     }
   }
 
-  const FftSizeOptions = [512, 1024, 2048, 4096, 8192]
+  const FftSizeOptions = [512, 1024, 2048, 4096, 8192, 16384]
 
   return {
     maxDecibels: -30,
