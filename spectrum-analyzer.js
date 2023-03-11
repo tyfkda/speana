@@ -30,13 +30,11 @@ const initialData = (() => {
       this.peakFallVel = [...Array(WIDTH)].map(_ => 0)
 
       const sampleRate = this.analyserNode.context.sampleRate
-      const range = (maxHzVal - minHzVal) / WIDTH
-      const binScale = bufferLength / (sampleRate * 0.5)
-      this.xBinTable = [...Array(WIDTH + 1)].map((_, i) => {
-        const e = i * range + minHzVal
+      this.xBinTable = new Int32Array([...Array(WIDTH + 1)].map((_, i) => {
+        const e = i / WIDTH * (maxHzVal - minHzVal) + minHzVal
         const freq = 10 ** e
-        return (freq * binScale) | 0
-      })
+        return (freq * bufferLength / (sampleRate * 0.5)) | 0
+      }))
     }
 
     setDecibels(max, min) {
@@ -125,6 +123,9 @@ const initialData = (() => {
 
   const FftSizeOptions = [512, 1024, 2048, 4096, 8192, 16384]
 
+  const HideMenuX = 'translateX(100%)'
+  const ShowMenuX = 'translateX(0)'
+
   return {
     maxDecibels: -30,
     minDecibels: -70,
@@ -132,6 +133,7 @@ const initialData = (() => {
     FftSizeOptions,
     smoothing: 0.0,
     playing: false,
+    menuX: HideMenuX,
 
     audioCtx: null,
     spectrumAnalyzer: null,
@@ -172,6 +174,9 @@ const initialData = (() => {
         if (this.spectrumAnalyzer != null)
           this.spectrumAnalyzer.analyserNode.smoothingTimeConstant = value
       })
+    },
+    toggleMenu() {
+      this.menuX = (this.menuX === HideMenuX) ? ShowMenuX : HideMenuX
     },
     onFileChange(files) {
       if (files == null || files.length === 0)
