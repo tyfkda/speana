@@ -5,28 +5,13 @@ const initialData = (() => {
   const LED = 'led'
 
   const FreqTable = [
-    // https://www.circuitlib.com/index.php/lessons/digital-real-time-audio-frequency-led-spectrum-analyzer
-    6,
-    (31.5 + 63) / 2,
-    (63 + 94) / 2,
-    (94 + 126) / 2,
-    (126 + 170) / 2,
-    (170 + 230) / 2,
-    (230 + 310) / 2,
-    (310 + 420) / 2,
-    (420 + 563) / 2,
-    (563 + 760) / 2,
-    (760 + 1000) / 2,
-    (1000 + 1370) / 2,
-    (1370 + 1870) / 2,
-    (1870 + 2550) / 2,
-    (2550 + 3400) / 2,
-    (3400 + 4600) / 2,
-    (4600 + 6150) / 2,
-    (6150 + 8360) / 2,
-    (8360 + 11200) / 2,
-    (11200 + 15000) / 2,
-    20000,
+    63,
+    160,
+    400,
+    1000,
+    2500,
+    6200,
+    16000,
   ]
 
   const AMP_WAIT0 = 30  // 0.5sec
@@ -38,8 +23,8 @@ const initialData = (() => {
   const RED = 'rgb(224,0,0)'
   const GRAY = 'rgb(40,40,40)'
 
-  function calcBin(f, bufferLength, sampleRate) {
-    return (f * bufferLength / (sampleRate * 0.5)) | 0
+  function calcBin(freq, bufferLength, sampleRate) {
+    return (freq * bufferLength / (sampleRate * 0.5)) | 0
   }
 
   const minHz = 20
@@ -75,7 +60,7 @@ const initialData = (() => {
       this.xBinTable = new Int32Array([...Array(WIDTH + 1)].map((_, i) => {
         const e = i / WIDTH * (maxHzVal - minHzVal) + minHzVal
         const freq = 10 ** e
-        return (freq * bufferLength / (sampleRate * 0.5)) | 0
+        return calcBin(freq, bufferLength, sampleRate)
       }))
     }
 
@@ -175,7 +160,7 @@ const initialData = (() => {
 
       const minDecibels = 0  //this.analyserNode.minDecibels
       const maxDecibels = 255  //this.analyserNode.maxDecibels
-      const n = this.freqBinTable.length - 1
+      const n = this.freqBinTable.length
       const barWidth = (WIDTH / n) | 0
       const YDIV = 20
       const H = HEIGHT / YDIV
@@ -183,12 +168,13 @@ const initialData = (() => {
 
       let bin = this.freqBinTable[0]
       for (let i = 0; i < n; ++i) {
-        const nextBin = this.freqBinTable[i + 1]
-        let max = minDecibels
-        for (let j = Math.min(bin, nextBin - 1); j < nextBin; ++j) {  // Avoid no bin.
-          max = Math.max(max, dataArray[j])
-        }
-        bin = nextBin
+        bin = this.freqBinTable[i]
+        let max = dataArray[bin]
+        // const nextBin = this.freqBinTable[i + 1]
+        // for (let j = Math.min(bin, nextBin - 1); j < nextBin; ++j) {  // Avoid no bin.
+        //   max = Math.max(max, dataArray[j])
+        // }
+        // bin = nextBin
         const h = Math.min((max - minDecibels) * scale, YDIV) | 0
         const x = i * WIDTH / n
         for (let j = 0; j < YDIV; ++j) {
