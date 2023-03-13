@@ -5,13 +5,13 @@ const initialData = (() => {
   const LED = 'led'
 
   const FreqTable = [
-    63,
-    160,
-    400,
-    1000,
-    2500,
-    6200,
-    16000,
+    {freq: 63, min: 0.5, max: 1.0},
+    {freq: 160, min: 0.25, max: 1.0},
+    {freq: 400, min: 0.0, max: 1.0},
+    {freq: 1000, min: 0.0, max: 0.9},
+    {freq: 2500, min: 0.0, max: 0.8},
+    {freq: 6200, min: 0.0, max: 0.6},
+    {freq: 16000, min: 0.0, max: 0.5},
   ]
 
   const AMP_WAIT0 = 30  // 0.5sec
@@ -35,6 +35,7 @@ const initialData = (() => {
   class SpectrumAnalyzer {
     analyserNode = null  // AnalyserNode
     dataArray = null     // Buffer for FFT
+    floatArray = null    // Buffer for FFT
     canvas = null        // Canvas
     xBinTable = null     // index of FFT-array for x
 
@@ -45,18 +46,21 @@ const initialData = (() => {
       this.analyserNode = this.audioCtx.createAnalyser()
 
       this.setUpWork()
+
+      FreqTable.forEach(e => e.scale = 1.0 / (e.max - e.min))
     }
 
     setUpWork() {
       const bufferLength = this.analyserNode.frequencyBinCount
       this.dataArray = new Uint8Array(bufferLength)
+      this.floatArray = new Float32Array(bufferLength)
 
       const WIDTH = this.canvas.width
       this.peakAmplitude = [...Array(WIDTH)].map(_ => 0)
       this.peakFallVel = [...Array(WIDTH)].map(_ => 0)
 
       const sampleRate = this.analyserNode.context.sampleRate
-      this.freqBinTable = FreqTable.map((f) => calcBin(f, bufferLength, sampleRate))
+      this.freqBinTable = FreqTable.map(({freq}) => calcBin(freq, bufferLength, sampleRate))
       this.xBinTable = new Int32Array([...Array(WIDTH + 1)].map((_, i) => {
         const e = i / WIDTH * (maxHzVal - minHzVal) + minHzVal
         const freq = 10 ** e
@@ -83,25 +87,25 @@ const initialData = (() => {
       if (this.analyserNode.minDecibels >= this.analyserNode.maxDecibels)
         return
 
-      const dataArray = this.dataArray
-      this.analyserNode.getByteFrequencyData(dataArray)
-
       switch (renderMode) {
       default:
       case LOGARITHMIC:
-        this.renderLogarithmic(canvasCtx, dataArray)
+        this.renderLogarithmic(canvasCtx)
         break
       case LED:
-        this.renderLed(canvasCtx, dataArray)
+        this.renderLed(canvasCtx)
         break
       }
     }
 
-    renderLogarithmic(canvasCtx, dataArray) {
+    renderLogarithmic(canvasCtx) {
       const WIDTH = this.canvas.width
       const HEIGHT = this.canvas.height
       const scale = HEIGHT / 255
       const gravity = HEIGHT / (64 * 64)
+
+      const dataArray = this.dataArray
+      this.analyserNode.getByteFrequencyData(dataArray)
 
       for (let i = 0; i < WIDTH; ++i) {
         // Bar.
@@ -154,17 +158,20 @@ const initialData = (() => {
       canvasCtx.setLineDash([])
     }
 
-    renderLed(canvasCtx, dataArray) {
+    renderLed(canvasCtx) {
       const WIDTH = this.canvas.width
       const HEIGHT = this.canvas.height
 
-      const minDecibels = 0  //this.analyserNode.minDecibels
-      const maxDecibels = 255  //this.analyserNode.maxDecibels
+      const minDecibels = this.analyserNode.minDecibels
+      const maxDecibels = this.analyserNode.maxDecibels
       const n = this.freqBinTable.length
       const barWidth = (WIDTH / n) | 0
       const YDIV = 20
       const H = HEIGHT / YDIV
-      const scale = YDIV / (maxDecibels - minDecibels)
+      const scale = 1.0 / (maxDecibels - minDecibels)
+
+      const dataArray = this.floatArray
+      this.analyserNode.getFloatFrequencyData(dataArray)
 
       let bin = this.freqBinTable[0]
       for (let i = 0; i < n; ++i) {
@@ -175,7 +182,7 @@ const initialData = (() => {
         //   max = Math.max(max, dataArray[j])
         // }
         // bin = nextBin
-        const h = Math.min((max - minDecibels) * scale, YDIV) | 0
+        const h = Math.min((((max - minDecibels) * scale) - FreqTable[i].min) * FreqTable[i].scale * YDIV, YDIV) | 0
         const x = i * WIDTH / n
         for (let j = 0; j < YDIV; ++j) {
           canvasCtx.fillStyle = j >= h ? GRAY : j < YDIV - 4 ? GREEN : j < YDIV - 1 ? YELLOW : RED
@@ -221,8 +228,8 @@ const initialData = (() => {
     renderMode: LED,
     RenderModeOptions,
     maxDecibels: -30,
-    minDecibels: -70,
-    fftSize: 4096,
+    minDecibels: -100,  //-70,
+    fftSize: 2048,  //4096,
     FftSizeOptions,
     smoothing: 0.0,
     playing: false,
