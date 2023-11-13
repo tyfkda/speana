@@ -1,5 +1,3 @@
-console.log('dc_remove_worker.js')
-
 class DcRemoveProcessor extends AudioWorkletProcessor {
   stopped = false
   dc = new Float32Array()
@@ -7,9 +5,7 @@ class DcRemoveProcessor extends AudioWorkletProcessor {
   constructor() {
     super()
 
-console.log('DcRemoveProcessor')
     this.port.onmessage = (ev) => {
-console.log('onmessage', ev)
       switch (ev.data.action) {
       case 'stop':
         this.stopped = true
@@ -53,5 +49,3 @@ console.log('onmessage', ev)
 }
 
 registerProcessor('dc_remove_worklet', DcRemoveProcessor)
-
-console.log('dc_remove_worker.js, done')

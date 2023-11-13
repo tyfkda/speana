@@ -225,7 +225,7 @@ const initialData = (() => {
   const ShowMenuX = 'translateX(0)'
 
   return {
-    renderMode: LED,
+    renderMode: LOGARITHMIC,
     RenderModeOptions,
     maxDecibels: -30,
     minDecibels: -100,  //-70,
